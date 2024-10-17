@@ -1,12 +1,11 @@
 CFLAGS=-Wall -Werror
-
-.PHONY: t
+.PHONY: help
+help:
 
 DEF = -D'MAP_BASE=0x0' -D'MAP_SIZE=(0x100000000-MAP_BASE)'
+DEF += -D'MAX_TIME=6'
 
-DEF += -D'MAX_TIME=4'
-
-SOURCES = $(wildcard samples/*.as)
+SOURCES = $(wildcard entry/*.as)
 BINS = $(SOURCES:.as=.bin)
 
 all: battle boot.elf $(BINS)
@@ -14,12 +13,12 @@ all: battle boot.elf $(BINS)
 royale: all
 	./battle $(BINS)
 
-one-%: samples/%.bin battle boot.elf
+one-%: entry/%.bin battle boot.elf
 	./battle $<
-two-%: samples/%.bin battle boot.elf
+two-%: entry/%.bin battle boot.elf
 	./battle $< $<
 run-%: all
-	./battle $(patsubst %,samples/%.bin,$(subst -, ,$*))
+	./battle $(patsubst %,entry/%.bin,$(subst -, ,$*))
 
 battle: battle.c boot.elf Makefile 
 	${CC} ${CFLAGS} ${DEF} $< -o $@
@@ -29,12 +28,15 @@ boot.elf: boot.as Makefile
 	ld --section-start=.text=0x100000000 boot.o -o $@
 	chmod 755 $@
 
+boot.bin: boot.elf
+	objcopy -j .text -O binary $^ $@
+
 %.bin: %.as
 	nasm ${DEF} $< -o $@
 
-debug-%: samples/%.bin battle boot.elf
+debug-%: entry/%.bin battle boot.elf
 	DEBUG=1 ./battle $<
 gdb-%:
 	gdb -p $* -ex 'set arch i386' -ex 'p $$eip += 2'
 clean:
-	rm *.o boot.elf battle test
+	rm -f *.o boot.elf battle test

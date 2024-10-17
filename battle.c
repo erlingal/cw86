@@ -1,4 +1,5 @@
 #define _GNU_SOURCE
+
 #include <time.h>
 #include <string.h>
 #include <sys/resource.h>
@@ -15,11 +16,12 @@
 
 uint64_t big_rand() {
   uint64_t u;
-  if (getrandom(&u, sizeof(u), GRND_NONBLOCK) < sizeof(u)) {
+  if (getrandom(&u, sizeof(u), GRND_NONBLOCK) != sizeof(u)) {
     err(1, "rand");
   }
   return u;
 }
+
 typedef struct {
   const char *name;
   uint32_t addr;
@@ -51,7 +53,7 @@ int main(int argc, char **argv) {
   
   int corefd = memfd_create("core", 0);
   if (corefd < 0) err(1, "memfd_create");
-  if (ftruncate(corefd, 1ull << 32)) err(1,"ftruncate");
+  if (ftruncate(corefd, 0x100001000ull)) err(1,"ftruncate");
   dup2(corefd, 42);
 
   if (MAP_BASE != (uint64_t) mmap((void*) MAP_BASE, 4096, PROT_READ, MAP_PRIVATE | MAP_FIXED | MAP_ANONYMOUS, 0, 0)) {
@@ -59,7 +61,9 @@ int main(int argc, char **argv) {
   }
 
   char *space = mmap(0, MAP_SIZE, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_SHARED | MAP_POPULATE, corefd, 0);
-  if (space == (char*) -1) err(1, "mmap");
+  
+  if (space == (char*) -1)
+    err(1, "mmap");
   
   volatile uint64_t *bootargs = (volatile uint64_t*) space;
 
@@ -91,37 +95,45 @@ int main(int argc, char **argv) {
       char buf[20];
       sprintf(buf, "%lu", addr);
       char *argv[] = { buf, 0 };
-      for (int i=42; i--; ) close(i);
+
+      if (!getenv("FD")) {
+        for (int i = 42; i --> 0; ) close(i);
+      }
+      
       execve("./boot.elf", argv, 0);
-      err(1, "exec");
+      
+      exit(1);
     }
     ply[i].addr = addr;
     ply[i].pid = pid;
     on_exit(kill_it, &ply[i]);
-    printf("%4d bytes @ 0x%08x (pid %d) %s\n", size, ply[i].addr, ply[i].pid, ply[i].name);
+    printf("%5d bytes @ 0x%08x (pid %d) %s\n", size, ply[i].addr, ply[i].pid, ply[i].name);
   }
 
-  time_t a = time(0) + 1000;
+  time_t a = time(0);
   while (bootargs[1] < np) {
-    if (time(0) > a) {
+    if (time(0) > a + 1) {
       errx(1, "Loader failed to check in (%d/%d)", (int) bootargs[1], np);
     }
   }
+
+  int tie = -1;
   
-  int tie = fork();
-  if (tie < 0) err(1, "fork");
-  if (tie == 0) {
-    sleep(getenv("DEBUG") ? 600 : MAX_TIME);
-    _exit(0);
-  }
-  
-  // Release both
   if (getenv("DEBUG")) {
-    printf("Debug mode: attach, then skip one instruction to start\n");
+    printf("Not launching. Skip an instruction to start.\n");
   } else {
+           
+    tie = fork();
+    if (tie < 0) err(1, "fork");
+    if (tie == 0) {
+      sleep(getenv("DEBUG") ? 600 : MAX_TIME);
+      _exit(0);
+    }
+    
     bootargs[1] = 0;
     bootargs[0] = 0;
   }
+  
   
   int score = 0;
   int stopat = getenv("DUEL") ? np - 1 : np;

@@ -28,7 +28,7 @@ done:    push r8
 ; Map file descriptor 42 as first 2^32 bytes of space
 
          mov rdi, MAP_BASE
-         mov rsi, MAP_SIZE  ; 2^32
+         mov rsi, MAP_SIZE
          mov rdx, 0x7   ; PROT_READ | PROT_WRITE | PROT_EXEC
          mov r10, 0x11  ; MAP_SHARED | MAP_FIXED
          mov r8,  42    ; fd
@@ -89,13 +89,13 @@ done:    push r8
          mov qword [r15], rdi
          mov word [r15+8], 0x23
 
-; Increase the  that we're ready,
+; Wait for the start signal
 
          mov rbx, qword [0]
          lock inc qword [0+8]
          
 waiting: cmp qword [0], rbx
-         jnz waiting
+         jz waiting
          
          mov rbx, rax
          

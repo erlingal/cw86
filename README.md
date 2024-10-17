@@ -8,6 +8,7 @@ running at the same time. The last program still running wins.
 - x86-64
 - 4 GB available RAM
 - Recent Linux kernel
+- Root access
 - `sysctl vm.mmap_min_addr=0`
 
 # Setup
@@ -21,22 +22,33 @@ $ git clone https://github.com/ealf/x86war
 $ make royale
 ...
 
-   1 bytes @ 0xce4f4fca (pid 188043) samples/crash.bin
-   2 bytes @ 0x339e4304 (pid 188044) samples/turtle.bin
-   6 bytes @ 0xfd985c44 (pid 188045) samples/walker.bin
-  14 bytes @ 0x210f73a2 (pid 188046) samples/wiper.bin
-  38 bytes @ 0xcfbdb204 (pid 188048) samples/jumpy.bin
+   1 bytes @ 0xce4f4fca (pid 188043) entry/crash.bin
+   2 bytes @ 0x339e4304 (pid 188044) entry/turtle.bin
+   6 bytes @ 0xfd985c44 (pid 188045) entry/walker.bin
+  14 bytes @ 0x210f73a2 (pid 188046) entry/wiper.bin
+  38 bytes @ 0xcfbdb204 (pid 188048) entry/jumpy.bin
 
-0 points: samples/crash.bin (Segmentation fault)
-1 points: samples/turtle.bin (Trace/breakpoint trap)
-2 points: samples/walker.bin (Trace/breakpoint trap)
-4 points: samples/wiper.bin (Survived)
-4 points: samples/jumpy.bin (Survived)
+0 points: entry/crash.bin (Segmentation fault)
+1 points: entry/turtle.bin (Trace/breakpoint trap)
+2 points: entry/walker.bin (Trace/breakpoint trap)
+4 points: entry/wiper.bin (Survived)
+4 points: entry/jumpy.bin (Survived)
 
-$ 
+$ echo $'bits 32 \n x: jmp x' > entry/hang.as
+$ make run-hang-hang-crash
+...
+
+    2 bytes @ 0x3c3b952a (pid 1557021) entry/hang.bin
+    2 bytes @ 0x868aeb6b (pid 1557022) entry/hang.bin
+    1 bytes @ 0xdd2c0f51 (pid 1557023) entry/crash.bin
+
+0 points: entry/crash.bin (Segmentation fault)
+2 points: entry/hang.bin (Survived)
+2 points: entry/hang.bin (Survived)
+
 ```
 
-Yeah, not eye candy.
+No eye candy.
 
 # Environment
 
@@ -59,8 +71,8 @@ The first program to execute an illegal instruction loses. The battle is in user
             F4             hlt
 ```
 
-## turtle
-
+## duck
+ 
 This is the simplest program that doesn't immediately lose, although it doesn't exactly *win* either.
 
 ```asm
@@ -92,7 +104,7 @@ This program copies itself forward in memory.
 
    - We can't use `mov edi, offset after` (that would need relocation support).
    
-   - And we can't use `lea rip, [rip+...]` (which is nice, but only encodable in 64-bit).
+   - And we can't use `lea rdi, [rip+...]` (which is nice, but only encodable in 64-bit).
 
 ## wiper
 
@@ -116,7 +128,7 @@ This program attempts to overwrite all memory (except itself) with instructions 
 
    - `(c)`: `edi` points to `end`. Again with the manual offset calculation.
 
-   - `(d)`: Since `start` is before `end`, the value for `ecx`, being unsigned (well, treated as such by `rep`), will wrap and we'll write four gigabytes minus the size of this program.
+   - `(d)`: Since `start` is before `end`, the value for `ecx`, being unsigned (or treated as such by `rep`), will wrap and we'll write four gigabytes less the size of this program.
 
 - `(e)`: If we survived this far, `jmp start` does it again. `edi` wrapped around, so it should be ready to go again.
 
@@ -161,6 +173,9 @@ will have a random value. Thus the first byte of the program will be
 changed to a random opcode. This is fine: execution will have moved
 on. If there's no one else in the address space, when the processor
 returns, after doing 2,147,483,648 additions, the byte will *just*
-returned to 0, ready for the next round.
+have returned to 0, ready for the next round.
 
-If there *is* another competitor, `empty` will start executing their code. This may corrupt the other program, crashing it *by accident* and winning the match.
+If there *is* another competitor, `empty` will start executing their
+code. With a bit of luck this may corrupt the other program, and it
+*might* crash first.
+
