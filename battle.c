@@ -14,6 +14,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+int verb;
+
 uint64_t big_rand() {
   uint64_t u;
   if (getrandom(&u, sizeof(u), GRND_NONBLOCK) != sizeof(u)) {
@@ -32,7 +34,10 @@ typedef struct {
 void stopped(player *p, int score, int status) {
   if (p->pid) {
     const char *signame = sigdescr_np(status & 127);
-    printf("%d points: %s (%s)\n", score, p->name, status == 0 ? "Survived" : signame ? signame : "-");
+    if (verb)
+      printf("%d points: %s (%s)\n", score, p->name, status == 0 ? "Survived" : signame ? signame : "-");
+    else
+      printf("%s=%d ", p->name, score);
     p->pid = 0;
   }
 }
@@ -43,8 +48,12 @@ void kill_it(int x, void *v) {
 }
 
 int main(int argc, char **argv) {
-  
-  printf("..."); fflush(stdout);
+  verb = !getenv("SHORT");
+ 
+  if (verb) {
+    printf("...");
+    fflush(stdout);
+  }
 
   struct rlimit lim = {
     0, 0
@@ -74,7 +83,7 @@ int main(int argc, char **argv) {
   
   player *ply = calloc(np, sizeof(player));
 
-  printf("\r   \n");
+  if (verb) printf("\r   \n");
    
   for (int i=0; i<np; i++) {
     ply[i].name = argv[i+1];
@@ -83,6 +92,10 @@ int main(int argc, char **argv) {
     if (fd < 0) err(1, "can't open %s", ply[i].name);
 
     uint64_t addr = MAP_BASE + (big_rand() % MAP_SIZE);
+
+    if (getenv("NORAND") && i < 2) {
+      addr = i ? 0x10000000 : 0x90000000u;
+    }
 
     int size = read(fd, space + addr - MAP_BASE, 65536);
     if (size < 0) err(1, "can't read %s", ply[i].name);
@@ -107,7 +120,7 @@ int main(int argc, char **argv) {
     ply[i].addr = addr;
     ply[i].pid = pid;
     on_exit(kill_it, &ply[i]);
-    printf("%5d bytes @ 0x%08x (pid %d) %s\n", size, ply[i].addr, ply[i].pid, ply[i].name);
+    if (verb) printf("%5d bytes @ 0x%08x (pid %d) %s\n", size, ply[i].addr, ply[i].pid, ply[i].name);
   }
 
   time_t a = time(0);
@@ -137,15 +150,15 @@ int main(int argc, char **argv) {
   
   int score = 0;
   int stopat = getenv("DUEL") ? np - 1 : np;
-  printf("\n");
+  if (verb) printf("\n");
   while (score < stopat) {
     int status;
     int pid = wait(&status);
     if (pid <= 0) break;
     
     if (pid == tie) {
-      if (getenv("VERBOSE")) printf("timed out\n");
       score++;
+      tie = 0;
       break;
     } else {
       for (int i=0; i<np; i++) {
@@ -158,6 +171,7 @@ int main(int argc, char **argv) {
   }
 
   for (int i=0; i<np; i++) stopped(&ply[i], score, 0);
+
   printf("\n");
   if (tie) kill(tie, SIGKILL);
 }

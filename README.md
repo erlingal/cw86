@@ -95,7 +95,7 @@ This program copies itself forward in memory.
         83C706  (b)        add edi, (after - start) 
           B0AA             mov al, 0xAA  ; stosb
             AA  (a)        stosb 
-                        after:   
+                        after:
 ```
 
 - `(a)`: This instruction stores another `stosb` at `after`, then increases `edi`, ready to write another one. Like a slug on a clean floor, this will leave behind a trail of `movsb`ses.
@@ -114,7 +114,7 @@ This program attempts to overwrite all memory (except itself) with instructions 
                           bits 32
                           
                         start:
-          B0F1  (b)       mov al, 0xF1
+          B0F1  (b)       mov al, 0xF1 
         83C70E  (c)       add edi, (end - start) 
     B9F2FFFFFF  (d)       mov ecx, (start - end) 
           F3AA  (a)       rep stosb 
@@ -140,17 +140,18 @@ This program attempts to overwrite all memory (except itself) with instructions 
                         
                            bits 32
                         start:
-  81EF803E0000             sub edi, 16000
+  81EF400D0300             sub edi, 200000
+  8987C0F2FCFF             mov [edi-200000], eax  ; prefault
           8907             mov [edi], eax
                         _wait:
           3907             cmp [edi], eax
           74FC             jz _wait
   81EF400D0300             sub edi, 200000
-          89F8             mov eax, edi
-    B91F000000             mov ecx, end-start
+    B926000000             mov ecx, end-start
           F3A4             rep movsb
-          89C6             mov esi, eax
-          FFE0             jmp eax
+        83EF26             sub edi, end-start
+          89FE             mov esi, edi
+          FFE7             jmp edi
                         end:
                         
 ```

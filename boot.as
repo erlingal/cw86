@@ -25,9 +25,10 @@ digit:
 done:    push r8
 
 
-; Map file descriptor 42 as first 2^32 bytes of space
+; Start mapping from MAP_BASE, in chunks of MAP_SIZE, until we wrap
 
          mov rdi, MAP_BASE
+loop:
          mov rsi, MAP_SIZE
          mov rdx, 0x7   ; PROT_READ | PROT_WRITE | PROT_EXEC
          mov r10, 0x11  ; MAP_SHARED | MAP_FIXED
@@ -35,9 +36,14 @@ done:    push r8
          mov r9,  0     ; offset
          mov rax, 9     ; SYS_mmap
          syscall
-
-         cmp rax, MAP_BASE
+         
+         cmp rax, rdi
          jnz bad
+
+         add rdi, rsi
+         mov rax, rdi
+         shr rax, 32
+         jz loop
 
 ; close(42)
 

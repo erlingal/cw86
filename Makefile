@@ -2,8 +2,13 @@ CFLAGS=-Wall -Werror
 .PHONY: help
 help:
 
-DEF = -D'MAP_BASE=0x0' -D'MAP_SIZE=(0x100000000-MAP_BASE)'
-DEF += -D'MAX_TIME=6'
+# note that map_base + k*map_size must be 4G, otherwise the loader will crash
+
+# DEF = -D'MAP_BASE=0x0' -D'MAP_SIZE=(0x100000000-MAP_BASE)'
+# DEF += -D'MAX_TIME=5'
+
+DEF = -D'MAP_BASE=0x0' -D'MAP_SIZE=0x10000000'
+DEF += -D'MAX_TIME=1'
 
 SOURCES = $(wildcard entry/*.as)
 BINS = $(SOURCES:.as=.bin)
