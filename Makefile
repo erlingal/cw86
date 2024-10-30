@@ -25,7 +25,7 @@ battle: battle.c boot.elf Makefile
 
 boot.elf: boot.asm Makefile
 	nasm ${DEF} -f elf64 $< -o boot.o
-	ld --section-start=.text=0x100000000 boot.o -o $@
+	ld -pie boot.o -o $@
 	chmod 755 $@
 
 %.bin: %.asm
