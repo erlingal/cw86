@@ -35,7 +35,7 @@ debug-%: entry/%.bin battle boot.elf
 	DEBUG=1 ./battle $<
 
 gdb-%:
-	gdb -p $* -ex 'set arch i386' -ex 'p $$eip += 2'
+	gdb -p $* -ex 'p *(long*)0 = 0'
 
 clean:
 	rm -f *.o boot.elf battle test

@@ -173,5 +173,5 @@ int main(int argc, char **argv) {
   for (int i=0; i<np; i++) stopped(&ply[i], score, 0);
 
   printf("\n");
-  if (tie) kill(tie, SIGKILL);
+  if (tie > 0) kill(tie, SIGKILL);
 }
