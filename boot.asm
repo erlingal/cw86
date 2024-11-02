@@ -92,8 +92,8 @@ loop:
 
 ; Set up far jump to switch to 32-bit mode
 
-         mov qword [r15], rdi
-         mov word [r15+8], 0x23
+         mov dword [r15], edi
+         mov word [r15+4], 0x23
 
 ; Wait for the start signal
 
@@ -105,7 +105,7 @@ waiting: cmp qword [0], rbx
          
          mov rbx, rax
          
-         jmp far [r15]
+         jmp far dword [r15]
 
 bad:     mov rax, 60  ; SYS_exit
          mov rdi, 1
